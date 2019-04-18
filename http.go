@@ -101,7 +101,7 @@ func (c *client) doTimeoutRequest(timer *time.Timer, req *http.Request) (*http.R
 }
 
 // do prepare and process HTTP request to hdbm API
-func (c *client) do(method string, resource string, payload map[string]string, authNeeded bool) (response []byte, err error) {
+func (c *client) do(method string, resource string, payload map[string]interface{}, authNeeded bool) (response []byte, err error) {
 	connectTimer := time.NewTimer(c.httpTimeout)
 
 	if authNeeded {
@@ -136,7 +136,7 @@ func (c *client) do(method string, resource string, payload map[string]string, a
 		}
 		q := URL.Query()
 		for key, value := range payload {
-			q.Set(key, value)
+			q.Set(key, value.(string))
 		}
 		formData := q.Encode()
 		URL.RawQuery = formData

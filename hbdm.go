@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // hbdm API base url
@@ -54,8 +56,8 @@ type Hbdm struct {
 }
 
 // SetDebug sets enable/disable http request/response dump
-func (b *Hbdm) SetDebug(enable bool) {
-	b.client.debug = enable
+func (h *Hbdm) SetDebug(enable bool) {
+	h.client.debug = enable
 }
 
 // ContractIndexResponse is response for ContactIndex method
@@ -88,11 +90,11 @@ func (c *ContractIndexData) UnmarshalJSON(b []byte) (err error) {
 }
 
 // ContractIndex Get Contract Index Price Information
-func (b *Hbdm) ContractIndex(symbol string) (index *ContractIndexResponse, err error) {
-	payload := make(map[string]string, 1)
+func (h *Hbdm) ContractIndex(symbol string) (index *ContractIndexResponse, err error) {
+	payload := make(map[string]interface{}, 1)
 	payload["symbol"] = symbol
 
-	r, err := b.client.do("GET", "contract_index", payload, false)
+	r, err := h.client.do("GET", "contract_index", payload, false)
 	if err != nil {
 		return
 	}
@@ -130,29 +132,248 @@ type AccountInfoData struct {
 }
 
 // AccountInfo return User’s Account Information
-func (b *Hbdm) AccountInfo(symbol string) (info *AccountInfoResponse, err error) {
-	payload := make(map[string]string, 1)
+func (h *Hbdm) AccountInfo(symbol string) (info *AccountInfoResponse, err error) {
+	payload := make(map[string]interface{}, 1)
 	if symbol != "" {
 		payload["symbol"] = symbol
 	}
 
-	r, err := b.client.do("POST", "contract_account_info", payload, true)
+	r, err := h.client.do("POST", "contract_account_info", payload, true)
 	if err != nil {
-		fmt.Println("request")
 		return
 	}
 
 	var response interface{}
 	if err = json.Unmarshal(r, &response); err != nil {
-		fmt.Println("interface unmarshaling")
 		return
 	}
 
 	if err = handleErr(response); err != nil {
-		fmt.Println("err handler")
 		return
 	}
 
 	err = json.Unmarshal(r, &info)
+	return
+}
+
+type ContractPositionResponse struct {
+	Status string                 `json:"status"`
+	Data   []ContractPositionData `json:"data"`
+	Ts     int                    `json:"ts"`
+}
+
+type ContractPositionData struct {
+	Symbol         string  `json:"symbol"`
+	ContractType   string  `json:"contract_type"`
+	ContractCode   string  `json:"contract_code"`
+	Volume         float64 `json:"volume"`
+	Price          float64 `json:"price"`
+	Available      float64 `json:"available"`
+	Frozen         float64 `json:"frozen"`
+	CostOpen       float64 `json:"cost_open"`
+	CostHold       float64 `json:"cost_hold"`
+	ProfitUnreal   float64 `json:"profit_unreal"`
+	ProfitRate     float64 `json:"profit_rate"`
+	Profit         float64 `json:"profit"`
+	PositionMargin float64 `json:"position_margin"`
+	LevelRate      int     `json:"level_rate"`
+	Direction      string  `json:"direction"`
+}
+
+func (h *Hbdm) PositionInfo(symbol string) (positions *ContractPositionResponse, err error) {
+	payload := make(map[string]interface{}, 1)
+	if symbol != "" {
+		payload["symbol"] = symbol
+	}
+
+	r, err := h.client.do("POST", "contract_position_info", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &positions)
+	return
+
+}
+
+type ContractOrderResponse struct {
+	Status        string  `json:"status"`
+	OrderId       float64 `json:"order_id"`
+	ClientOrderId float64 `json:"client_order_id"`
+	Ts            int     `json:"ts"`
+}
+
+func (h *Hbdm) ContractOder(symbol, contractType, contractCode, direction, offset, priceType string, price float64, volume, levelRate int) (order *ContractOrderResponse, err error) {
+	payload := make(map[string]interface{}, 9)
+	payload["symbol"] = symbol
+	payload["contract_type"] = contractType
+	payload["client_order_id"] = 5
+	payload["price"] = price
+	payload["volume"] = volume
+	payload["direction"] = direction
+	payload["offset"] = offset
+	payload["lever_rate"] = levelRate
+	payload["order_price_type"] = priceType
+
+	if contractCode != "" {
+		payload["contract_code"] = contractCode
+	}
+
+	r, err := h.client.do("POST", "contract_order", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &order)
+	return
+}
+
+type OrderInfoResponse struct {
+	Status string          `json:"status"`
+	Ts     int             `json:"ts"`
+	Data   []OrderInfoData `json:"data"`
+}
+
+type OrderInfoData struct {
+	Symbol        string  `json:"symbol"`
+	ContractType  string  `json:"contract_type"`
+	ContractCode  string  `json:"contract_code"`
+	Volume        int     `json:"volume"`
+	Price         float64 `json:"price"`
+	PriceType     string  `json:"order_price_type"`
+	Direction     string  `json:"direction"`
+	Offset        string  `json:"offset"`
+	LevelRate     int     `json:"level_rate"`
+	OrderId       int     `json:"order_id"`
+	ClientOrderId int     `json:"client_order_id"`
+	OrderSource   string  `json:"order_source"`
+	CreatedAt     int     `json:"created_at"`
+	TradeVolume   int     `json:"trade_volume"`
+	TradeTurnover float64 `json:"trade_turnover"`
+	Fee           float64 `json:"fee"`
+	TradeAvgPrice float64 `json:"trade_avg_price"`
+	MarginFrozen  float64 `json:"margin_frozen"`
+	Profit        float64 `json:"profit"`
+	Status        int     `json:"status"`
+}
+
+func (h *Hbdm) OrderInfo(orderId, clientOrderId, symbol string) (orders *OrderInfoResponse, err error) {
+	payload := make(map[string]interface{}, 3)
+	if symbol != "" {
+		payload["symbol"] = symbol
+	}
+	if orderId != "" {
+		payload["order_id"] = orderId
+	}
+	if clientOrderId != "" {
+		payload["client_order_id"] = clientOrderId
+	}
+
+	spew.Dump(payload)
+
+	r, err := h.client.do("POST", "contract_order_info", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &orders)
+	return
+}
+
+type OrdersResponse struct {
+	Status string `json:"status"`
+	Ts     int    `json:"ts"`
+	Data   struct {
+		Orders []OrderInfoData `json:"orders"`
+	} `json:"data"`
+}
+
+func (h *Hbdm) OpenOrders(symbol string, pageIndex, pageSize *int) (orders *OrdersResponse, err error) {
+	payload := make(map[string]interface{}, 3)
+	if symbol != "" {
+		payload["symbol"] = symbol
+	}
+	if pageIndex != nil {
+		payload["page_index"] = *pageIndex
+	}
+	if pageSize != nil {
+		payload["page_size"] = *pageSize
+	}
+
+	r, err := h.client.do("POST", "contract_openorders", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &orders)
+	return
+}
+
+func (h *Hbdm) HistoryOrders(symbol string, tradeType, orderType, status, create int, pageIndex, pageSize *int) (orders *OrdersResponse, err error) {
+	payload := make(map[string]interface{}, 7)
+	payload["symbol"] = symbol
+	payload["trade_type"] = tradeType
+	payload["type"] = orderType
+	payload["status"] = status
+	payload["create_date"] = create
+
+	if pageIndex != nil {
+		payload["page_index"] = *pageIndex
+	}
+	if pageSize != nil {
+		payload["page_size"] = *pageSize
+	}
+
+	r, err := h.client.do("POST", "contract_hisorders", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &orders)
 	return
 }
