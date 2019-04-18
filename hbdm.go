@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -15,19 +16,19 @@ const API_BASE = "https://api.hbdm.com/api/v1"
 // New returns an instantiated hbdm struct
 func New(apiKey, apiSecret string) *Hbdm {
 	client := NewHttpClient(apiKey, apiSecret)
-	return &Hbdm{client}
+	return &Hbdm{client, sync.Mutex{}}
 }
 
 // NewWithCustomHttpClient returns an instantiated hbdm struct with custom http client
 func NewWithCustomHttpClient(apiKey, apiSecret string, httpClient *http.Client) *Hbdm {
 	client := NewHttpClientWithCustomHttpConfig(apiKey, apiSecret, httpClient)
-	return &Hbdm{client}
+	return &Hbdm{client, sync.Mutex{}}
 }
 
 // NewWithCustomTimeout returns an instantiated hbdm struct with custom timeout
 func NewWithCustomTimeout(apiKey, apiSecret string, timeout time.Duration) *Hbdm {
 	client := NewHttpClientWithCustomTimeout(apiKey, apiSecret, timeout)
-	return &Hbdm{client}
+	return &Hbdm{client, sync.Mutex{}}
 }
 
 // handleErr gets JSON response from livecoin API en deal with error
@@ -53,6 +54,7 @@ func handleErr(r interface{}) error {
 // Hbdm represent a hbdm client
 type Hbdm struct {
 	client *client
+	mu     sync.Mutex
 }
 
 // SetDebug sets enable/disable http request/response dump
@@ -156,12 +158,14 @@ func (h *Hbdm) AccountInfo(symbol string) (info *AccountInfoResponse, err error)
 	return
 }
 
+// ContractPositionResponse is response from PositionInfo method
 type ContractPositionResponse struct {
 	Status string                 `json:"status"`
 	Data   []ContractPositionData `json:"data"`
 	Ts     int                    `json:"ts"`
 }
 
+// ContractPositionData is Position data model
 type ContractPositionData struct {
 	Symbol         string  `json:"symbol"`
 	ContractType   string  `json:"contract_type"`
@@ -180,6 +184,7 @@ type ContractPositionData struct {
 	Direction      string  `json:"direction"`
 }
 
+// PositionInfo Get Account open position
 func (h *Hbdm) PositionInfo(symbol string) (positions *ContractPositionResponse, err error) {
 	payload := make(map[string]interface{}, 1)
 	if symbol != "" {
@@ -205,18 +210,31 @@ func (h *Hbdm) PositionInfo(symbol string) (positions *ContractPositionResponse,
 
 }
 
+// ContractOrderResponse is response from ContractOder method
 type ContractOrderResponse struct {
-	Status        string  `json:"status"`
-	OrderId       float64 `json:"order_id"`
-	ClientOrderId float64 `json:"client_order_id"`
-	Ts            int     `json:"ts"`
+	Status string            `json:"status"`
+	Data   ContractOrderData `json:"data"`
+	Ts     int               `json:"ts"`
 }
 
+// ContractOrderData is ContractOrder method response data
+type ContractOrderData struct {
+	OrderId       float64 `json:"order_id"`
+	ClientOrderId float64 `json:"client_order_id"`
+}
+
+// ContractOder place order for open or close contract position
 func (h *Hbdm) ContractOder(symbol, contractType, contractCode, direction, offset, priceType string, price float64, volume, levelRate int) (order *ContractOrderResponse, err error) {
+
+	orderId, err := h.GetAndIncrementNonce()
+	if err != nil {
+		return nil, err
+	}
+
 	payload := make(map[string]interface{}, 9)
 	payload["symbol"] = symbol
 	payload["contract_type"] = contractType
-	payload["client_order_id"] = 5
+	payload["client_order_id"] = orderId
 	payload["price"] = price
 	payload["volume"] = volume
 	payload["direction"] = direction
@@ -246,12 +264,52 @@ func (h *Hbdm) ContractOder(symbol, contractType, contractCode, direction, offse
 	return
 }
 
+// CancelAllOrdersResponse is response from CancelAllOrders method
+type CancelAllOrdersResponse struct {
+	Status string                `json:"status"`
+	Data   []CancelAllOrdersData `json:"data"`
+	Ts     int                   `json:"ts"`
+}
+
+// CancelAllOrdersData is CancelAllOrdersData method response data
+type CancelAllOrdersData struct {
+	OrderId string `json:"order_id"`
+	ErrCode int    `json:"err_code"`
+	ErrMsg  string `json:"err_msg"`
+}
+
+// CancelAllOrders cancel all user orders for given symbol
+func (h *Hbdm) CancelAllOrders(symbol string) (resp *CancelAllOrdersResponse, err error) {
+	payload := make(map[string]interface{}, 1)
+	payload["symbol"] = symbol
+
+	r, err := h.client.do("POST", "contract_cancelall", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &resp)
+	return
+
+}
+
+// OrderInfoResponse is response for OrderInfo method
 type OrderInfoResponse struct {
 	Status string          `json:"status"`
 	Ts     int             `json:"ts"`
 	Data   []OrderInfoData `json:"data"`
 }
 
+// OrderInfoData id Order data model
 type OrderInfoData struct {
 	Symbol        string  `json:"symbol"`
 	ContractType  string  `json:"contract_type"`
@@ -275,6 +333,7 @@ type OrderInfoData struct {
 	Status        int     `json:"status"`
 }
 
+// OrderInfo get Order info by given order ID for providing Symbol
 func (h *Hbdm) OrderInfo(orderId, clientOrderId, symbol string) (orders *OrderInfoResponse, err error) {
 	payload := make(map[string]interface{}, 3)
 	if symbol != "" {
@@ -307,6 +366,7 @@ func (h *Hbdm) OrderInfo(orderId, clientOrderId, symbol string) (orders *OrderIn
 	return
 }
 
+// OrdersResponse is mutual response for Orders arrays methods - Open, History
 type OrdersResponse struct {
 	Status string `json:"status"`
 	Ts     int    `json:"ts"`
@@ -315,6 +375,7 @@ type OrdersResponse struct {
 	} `json:"data"`
 }
 
+// OpenOrders get all open orders
 func (h *Hbdm) OpenOrders(symbol string, pageIndex, pageSize *int) (orders *OrdersResponse, err error) {
 	payload := make(map[string]interface{}, 3)
 	if symbol != "" {
@@ -345,6 +406,7 @@ func (h *Hbdm) OpenOrders(symbol string, pageIndex, pageSize *int) (orders *Orde
 	return
 }
 
+// HistoryOrders get history orders by given filters
 func (h *Hbdm) HistoryOrders(symbol string, tradeType, orderType, status, create int, pageIndex, pageSize *int) (orders *OrdersResponse, err error) {
 	payload := make(map[string]interface{}, 7)
 	payload["symbol"] = symbol
