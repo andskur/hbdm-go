@@ -1,4 +1,4 @@
-package hbdm
+package ws
 
 import (
 	"bytes"
@@ -20,37 +20,36 @@ var mu sync.Mutex
 // HBDM websocket API URL's
 const (
 	wsMarketData = "wss://www.hbdm.com/ws"
-	wsOrders     = "wss://api.hbdm.com/notification"
 )
 
-// responseChannels handles all incoming data from the hbdm connection.
-type responseChannels struct {
+// responseMarketChannels handles all incoming data from the hbdm connection.
+type responseMarketChannels struct {
 	MarketDepth map[string]chan WsDepthMarketResponse
 
 	ErrorFeed chan error
 }
 
-// WSClient represents a JSON RPC v2 Connection over Websocket,
-type WSClient struct {
+// WSMarketClient represents a JSON RPC v2 Connection over Websocket,
+type WSMarketClient struct {
 	conn    *websocket.Conn
-	Updates *responseChannels
+	Updates *responseMarketChannels
 	done    chan struct{}
 }
 
-// NewWSClient creates a new hbm Websocket API client
-func NewWSClient() (*WSClient, error) {
+// NewWSMarketClient creates a new hbm Websocket API client
+func NewWSMarketClient() (*WSMarketClient, error) {
 	conn, _, err := websocket.DefaultDialer.Dial(wsMarketData, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	handler := responseChannels{
+	handler := responseMarketChannels{
 		MarketDepth: make(map[string]chan WsDepthMarketResponse),
 
 		ErrorFeed: make(chan error),
 	}
 
-	client := &WSClient{
+	client := &WSMarketClient{
 		conn:    conn,
 		Updates: &handler,
 
@@ -62,20 +61,20 @@ func NewWSClient() (*WSClient, error) {
 	return client, nil
 }
 
-// wsHbdmRequest is top-level hbdm request to Websocket API
-type wsHbdmRequest struct {
+// wsHbdmMarketRequest is top-level hbdm request to Websocket API
+type wsHbdmMarketRequest struct {
 	Sub string `json:"sub"`
 	Id  string `json:"id"`
 }
 
-// wsHbdmResponse is top-level response from hbdm Websocket API
-type wsHbdmResponse struct {
+// wsHbdmMarketResponse is top-level response from hbdm Websocket API
+type wsHbdmMarketResponse struct {
 	Ch string `json:"ch"`
 	Ts int    `json:"ts"`
 }
 
-//
-func (c *WSClient) handle() error {
+// handle message from websocket
+func (c *WSMarketClient) handle() error {
 	defer close(c.done)
 	go func() {
 		<-c.done
@@ -127,18 +126,18 @@ func (c *WSClient) handle() error {
 	}
 }
 
-// Ping represent "Ping" request from Websocket server
-type Ping struct {
+// PingMarket represent "PingMarket" request from Websocket server
+type PingMarket struct {
 	Ping int `json:"Ping"`
 }
 
-// Pong represent "Pong" request to Websocket server
-type Pong struct {
+// PongMarket represent "PongMarket" request to Websocket server
+type PongMarket struct {
 	Pong int `json:"Pong"`
 }
 
 // checkPing check if message is "ping" if yes - send "pong"
-func (c *WSClient) checkPing(msg []byte) (bool, error) {
+func (c *WSMarketClient) checkPing(msg []byte) (bool, error) {
 	var res map[string]interface{}
 
 	if err := json.Unmarshal(msg, &res); err != nil {
@@ -153,14 +152,14 @@ func (c *WSClient) checkPing(msg []byte) (bool, error) {
 	}
 
 Pong:
-	var ping Ping
+	var ping PingMarket
 
 	err := json.Unmarshal(msg, &ping)
 	if err != nil {
 		return true, err
 	}
 
-	pong := Pong{Pong: ping.Ping}
+	pong := PongMarket{Pong: ping.Ping}
 
 	jsonPong, err := json.Marshal(pong)
 	if err != nil {
@@ -176,8 +175,8 @@ Pong:
 }
 
 // parseMethod parse API method from Websocket response message
-func (c WSClient) parseMethod(msg []byte) (method, symbol string, err error) {
-	var resp wsHbdmResponse
+func (c WSMarketClient) parseMethod(msg []byte) (method, symbol string, err error) {
+	var resp wsHbdmMarketResponse
 
 	if err := json.Unmarshal(msg, &resp); err != nil {
 		log.Printf("%s", err)
@@ -199,7 +198,7 @@ func (c WSClient) parseMethod(msg []byte) (method, symbol string, err error) {
 }
 
 // Close closes the Websocket connected to the hbdm api.
-func (c *WSClient) Close() {
+func (c *WSMarketClient) Close() {
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
@@ -258,7 +257,7 @@ func (o *Offer) UnmarshalJSON(b []byte) error {
 }
 
 // SubscribeMarketDepth subscribe to websocket Market Depth data
-func (c *WSClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMarketResponse, error) {
+func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMarketResponse, error) {
 	if c.conn == nil {
 		return nil, errors.New("connection is unitialized")
 	}
@@ -270,7 +269,7 @@ func (c *WSClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMarketResp
 		return nil, err
 	}
 
-	var request = wsHbdmRequest{Sub: sub, Id: id.String()}
+	var request = wsHbdmMarketRequest{Sub: sub, Id: id.String()}
 
 	msg, err := json.Marshal(request)
 	if err != nil {
