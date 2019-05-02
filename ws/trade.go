@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 
@@ -143,7 +142,6 @@ func (c *WSTradeClient) handle() error {
 			continue
 		}
 		if ok {
-			fmt.Println("PIIING")
 			continue
 		}
 
@@ -152,8 +150,6 @@ func (c *WSTradeClient) handle() error {
 			fmt.Println(err)
 			continue
 		}
-
-		spew.Dump(res)
 
 		method, symbol, err := c.parseMethod(msg)
 		if err != nil {
