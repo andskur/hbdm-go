@@ -256,38 +256,40 @@ type wsOrderPushRequest struct {
 
 // OrderPushResponse is response from Order Push method subscribe
 type WsOrderPushResponse struct {
-	Op             string  `json:"op"`
-	Topic          string  `json:"topic"`
-	Ts             int     `json:"ts"`
-	Symbol         string  `json:"symbol"`
-	ContractType   string  `json:"contract_type"`
-	ContractCode   string  `json:"contract_code"`
-	Volume         float64 `json:"volume"`
-	Price          float64 `json:"price"`
-	OrderPriceType string  `json:"order_price_type"`
-	Direction      string  `json:"direction"`
-	Offset         string  `json:"offset"`
-	Status         int     `json:"status"`
-	LevelRate      int     `json:"level_rate"`
-	OrderId        int     `json:"order_id"`
-	ClientOrderId  int     `json:"client_order_id"`
-	OrderSource    string  `json:"order_source"`
-	OrderType      int     `json:"order_type"`
-	CreatedAt      int     `json:"created_at"`
-	TradeVolume    float64 `json:"trade_volume"`
-	TradeTurnover  float64 `json:"trade_turnover"`
-	Fee            float64 `json:"fee"`
-	TradeAvgPrice  float64 `json:"trade_avg_price"`
-	MarginFrozen   float64 `json:"margin_frozen"`
-	Profit         float64 `json:"profit"`
-	Trade          struct {
-		TradeId       int     `json:"trade_id"`
-		TradeVolume   float64 `json:"trade_volume"`
-		TradePrice    float64 `json:"trade_price"`
-		TradeFee      float64 `json:"trade_fee"`
-		TradeTurnover float64 `json:"trade_turnover"`
-		CreatedAt     int     `json:"created_at"`
-	} `json:"trade"`
+	Op             string       `json:"op"`
+	Topic          string       `json:"topic"`
+	Ts             int          `json:"ts"`
+	Symbol         string       `json:"symbol"`
+	ContractType   string       `json:"contract_type"`
+	ContractCode   string       `json:"contract_code"`
+	Volume         float64      `json:"volume"`
+	Price          float64      `json:"price"`
+	OrderPriceType string       `json:"order_price_type"`
+	Direction      string       `json:"direction"`
+	Offset         string       `json:"offset"`
+	Status         int          `json:"status"`
+	LevelRate      int          `json:"level_rate"`
+	OrderId        int          `json:"order_id"`
+	ClientOrderId  int          `json:"client_order_id"`
+	OrderSource    string       `json:"order_source"`
+	OrderType      int          `json:"order_type"`
+	CreatedAt      int          `json:"created_at"`
+	TradeVolume    float64      `json:"trade_volume"`
+	TradeTurnover  float64      `json:"trade_turnover"`
+	Fee            float64      `json:"fee"`
+	TradeAvgPrice  float64      `json:"trade_avg_price"`
+	MarginFrozen   float64      `json:"margin_frozen"`
+	Profit         float64      `json:"profit"`
+	Trade          []OrderTrade `json:"trade"`
+}
+
+type OrderTrade struct {
+	TradeId       int     `json:"trade_id"`
+	TradeVolume   float64 `json:"trade_volume"`
+	TradePrice    float64 `json:"trade_price"`
+	TradeFee      float64 `json:"trade_fee"`
+	TradeTurnover float64 `json:"trade_turnover"`
+	CreatedAt     int     `json:"created_at"`
 }
 
 // SubscribeOrderPush subscribe to websocket Order Push data
