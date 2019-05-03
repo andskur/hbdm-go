@@ -116,8 +116,6 @@ func (c *WSTradeClient) auth() error {
 func (c *WSTradeClient) handle() error {
 	defer close(c.done)
 
-	fmt.Println("start ")
-
 	go func() {
 		<-c.done
 		c.Close()
@@ -194,15 +192,9 @@ func (c *WSTradeClient) parseMethod(msg []byte) (method, symbol string, err erro
 	}
 
 	slice := strings.Split(resp.Topic, ".")
-	length := len(slice)
 
-	if length > 1 {
-		symbol = slice[1]
-	}
-
-	if length > 2 {
-		method = slice[2]
-	}
+	method = slice[0]
+	symbol = slice[1]
 
 	return
 }
