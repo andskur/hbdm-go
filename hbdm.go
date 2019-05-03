@@ -264,6 +264,51 @@ func (h *Hbdm) ContractOder(symbol, contractType, contractCode, direction, offse
 	return
 }
 
+type CancelOrderResponse struct {
+	Status    string             `json:"status"`
+	Errors    []CancelOrderError `json:"errors"`
+	Successes []string           `json:"successes"`
+	Ts        int                `json:"ts"`
+}
+
+type CancelOrderError struct {
+	OrderId string `json:"order_id"`
+	ErrCode int    `json:"err_code"`
+	ErrMsg  string `json:"err_msg"`
+}
+
+// CancelAllOrders cancel all user orders for given symbol
+func (h *Hbdm) CanceOrder(symbol, orderId, clientOrderId string) (resp *CancelOrderResponse, err error) {
+	payload := make(map[string]interface{}, 3)
+	payload["symbol"] = symbol
+
+	if orderId != "" {
+		payload["order_id"] = orderId
+	}
+
+	if clientOrderId != "" {
+		payload["client_order_id"] = clientOrderId
+	}
+
+	r, err := h.client.do("POST", "contract_cancel", payload, true)
+	if err != nil {
+		return
+	}
+
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+
+	if err = handleErr(response); err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &resp)
+	return
+
+}
+
 // CancelAllOrdersResponse is response from CancelAllOrders method
 type CancelAllOrdersResponse struct {
 	Status string                `json:"status"`
