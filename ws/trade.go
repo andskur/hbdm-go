@@ -271,7 +271,7 @@ type WsOrderPushResponse struct {
 	LevelRate      int     `json:"level_rate"`
 	OrderId        int     `json:"order_id"`
 	ClientOrderId  int     `json:"client_order_id"`
-	OrderSource    int     `json:"order_source"`
+	OrderSource    string  `json:"order_source"`
 	OrderType      int     `json:"order_type"`
 	CreatedAt      int     `json:"created_at"`
 	TradeVolume    float64 `json:"trade_volume"`
