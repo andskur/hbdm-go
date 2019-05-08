@@ -113,7 +113,7 @@ func (c *WSTradeClient) auth() error {
 }
 
 // handle message from websocket
-func (c *WSTradeClient) handle() error {
+func (c *WSTradeClient) handle() {
 	defer close(c.done)
 
 	go func() {
@@ -340,9 +340,9 @@ func (c *WSTradeClient) Close() {
 	}
 	c.conn.Close()
 
-	/*for _, channel := range c.Updates.MarketDepth {
+	for _, channel := range c.Updates.OrderPush {
 		close(channel)
-	}*/
+	}
 
 	close(c.Updates.ErrorFeed)
 

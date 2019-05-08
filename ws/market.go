@@ -74,7 +74,7 @@ type wsHbdmMarketResponse struct {
 }
 
 // handle message from websocket
-func (c *WSMarketClient) handle() error {
+func (c *WSMarketClient) handle() {
 	defer close(c.done)
 	go func() {
 		<-c.done
