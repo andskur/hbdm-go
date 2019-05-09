@@ -31,7 +31,6 @@ type WSTradeClient struct {
 	apiSecret string
 	conn      *websocket.Conn
 	Updates   *responseTradeChannels
-	done      chan struct{}
 }
 
 // NewWSTradeClient creates a new hbm Websocket API client
@@ -52,8 +51,6 @@ func NewWSTradeClient(apiKey, apiSecret string) (*WSTradeClient, error) {
 		apiSecret: apiSecret,
 		conn:      conn,
 		Updates:   &handler,
-
-		done: make(chan struct{}),
 	}
 
 	go client.handle()
@@ -114,38 +111,29 @@ func (c *WSTradeClient) auth() error {
 
 // handle message from websocket
 func (c *WSTradeClient) handle() {
-	defer close(c.done)
-
-	go func() {
-		<-c.done
-		c.Close()
-	}()
-
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		msg, err := gzipCompress(message)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		var res map[string]interface{}
 		if err := json.Unmarshal(msg, &res); err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
-
-		fmt.Println(res)
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 		if ok {
 			continue
@@ -153,16 +141,16 @@ func (c *WSTradeClient) handle() {
 
 		method, symbol, err := c.parseMethod(msg)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		switch method {
 		case "orders":
 			var resp WsOrderPushResponse
 			if err := json.Unmarshal(msg, &resp); err != nil {
-				fmt.Println(err)
-				continue
+				c.Updates.ErrorFeed <- err
+				return
 			}
 			mu.Lock()
 			c.Updates.OrderPush[symbol] <- resp
