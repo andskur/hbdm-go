@@ -134,18 +134,20 @@ func (c *WSTradeClient) handle() {
 			continue
 		}
 
+		var res map[string]interface{}
+		if err := json.Unmarshal(msg, &res); err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		fmt.Println(res)
+
 		ok, err := c.checkPing(msg)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 		if ok {
-			continue
-		}
-
-		var res map[string]interface{}
-		if err := json.Unmarshal(msg, &res); err != nil {
-			fmt.Println(err)
 			continue
 		}
 
