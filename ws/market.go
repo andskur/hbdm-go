@@ -33,7 +33,6 @@ type responseMarketChannels struct {
 type WSMarketClient struct {
 	conn    *websocket.Conn
 	Updates *responseMarketChannels
-	done    chan struct{}
 }
 
 // NewWSMarketClient creates a new hbm Websocket API client
@@ -52,8 +51,6 @@ func NewWSMarketClient() (*WSMarketClient, error) {
 	client := &WSMarketClient{
 		conn:    conn,
 		Updates: &handler,
-
-		done: make(chan struct{}),
 	}
 
 	go client.handle()
@@ -75,28 +72,23 @@ type wsHbdmMarketResponse struct {
 
 // handle message from websocket
 func (c *WSMarketClient) handle() {
-	defer close(c.done)
-	go func() {
-		<-c.done
-		c.Close()
-	}()
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		msg, err := gzipCompress(message)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		if ok {
@@ -105,16 +97,16 @@ func (c *WSMarketClient) handle() {
 
 		method, symbol, err := c.parseMethod(msg)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			c.Updates.ErrorFeed <- err
+			return
 		}
 
 		switch method {
 		case "depth":
 			var resp WsDepthMarketResponse
 			if err := json.Unmarshal(msg, &resp); err != nil {
-				fmt.Println(err)
-				continue
+				c.Updates.ErrorFeed <- err
+				return
 			}
 			mu.Lock()
 			c.Updates.MarketDepth[symbol] <- resp
