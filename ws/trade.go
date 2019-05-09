@@ -102,7 +102,10 @@ func (c *WSTradeClient) auth() error {
 		log.Println(err)
 	}
 
-	if err := c.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+	mu.Lock()
+	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+	mu.Unlock()
+	if err != nil {
 		log.Println("write", err)
 	}
 
@@ -229,7 +232,9 @@ Pong:
 		return true, err
 	}
 
+	mu.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, jsonPong)
+	mu.Unlock()
 	if err != nil {
 		return true, err
 	}
@@ -306,7 +311,10 @@ func (c *WSTradeClient) SubscribeOrderPush(symbol string) (<-chan WsOrderPushRes
 		log.Println(err)
 	}
 
-	if err := c.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+	mu.Lock()
+	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+	mu.Unlock()
+	if err != nil {
 		log.Println("write", err)
 	}
 
@@ -323,7 +331,9 @@ func (c *WSTradeClient) SubscribeOrderPush(symbol string) (<-chan WsOrderPushRes
 func (c *WSTradeClient) Close() {
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
+	mu.Lock()
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	mu.Unlock()
 	if err != nil {
 		log.Println("write close:", err)
 		return

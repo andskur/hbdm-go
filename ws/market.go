@@ -275,7 +275,6 @@ func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMark
 	mu.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
 	mu.Unlock()
-
 	if err != nil {
 		log.Println("write", err)
 	}
