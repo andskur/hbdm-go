@@ -76,19 +76,19 @@ func (c *WSMarketClient) handle() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		msg, err := gzipCompress(message)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		if ok {
@@ -98,7 +98,7 @@ func (c *WSMarketClient) handle() {
 		method, symbol, err := c.parseMethod(msg)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		switch method {
@@ -106,7 +106,7 @@ func (c *WSMarketClient) handle() {
 			var resp WsDepthMarketResponse
 			if err := json.Unmarshal(msg, &resp); err != nil {
 				c.Updates.ErrorFeed <- err
-				return
+				break
 			}
 			mu.Lock()
 			c.Updates.MarketDepth[symbol] <- resp

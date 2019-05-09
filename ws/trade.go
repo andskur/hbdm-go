@@ -118,25 +118,25 @@ func (c *WSTradeClient) handle() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		msg, err := gzipCompress(message)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		var res map[string]interface{}
 		if err := json.Unmarshal(msg, &res); err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 		if ok {
 			continue
@@ -145,7 +145,7 @@ func (c *WSTradeClient) handle() {
 		method, symbol, err := c.parseMethod(msg)
 		if err != nil {
 			c.Updates.ErrorFeed <- err
-			return
+			break
 		}
 
 		switch method {
@@ -153,7 +153,7 @@ func (c *WSTradeClient) handle() {
 			var resp WsOrderPushResponse
 			if err := json.Unmarshal(msg, &resp); err != nil {
 				c.Updates.ErrorFeed <- err
-				return
+				break
 			}
 			mu.Lock()
 			c.Updates.OrderPush[symbol] <- resp
@@ -161,7 +161,6 @@ func (c *WSTradeClient) handle() {
 		default:
 			continue
 		}
-
 	}
 }
 
