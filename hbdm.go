@@ -278,15 +278,15 @@ type CancelOrderError struct {
 }
 
 // CancelAllOrders cancel all user orders for given symbol
-func (h *Hbdm) CanceOrder(symbol, orderId, clientOrderId string) (resp *CancelOrderResponse, err error) {
+func (h *Hbdm) CanceOrder(symbol string, orderId, clientOrderId int) (resp *CancelOrderResponse, err error) {
 	payload := make(map[string]interface{}, 3)
 	payload["symbol"] = symbol
 
-	if orderId != "" {
+	if orderId != 0 {
 		payload["order_id"] = orderId
 	}
 
-	if clientOrderId != "" {
+	if clientOrderId != 0 {
 		payload["client_order_id"] = clientOrderId
 	}
 
@@ -359,7 +359,7 @@ type OrderInfoData struct {
 	Symbol        string  `json:"symbol"`
 	ContractType  string  `json:"contract_type"`
 	ContractCode  string  `json:"contract_code"`
-	Volume        int     `json:"volume"`
+	Volume        float64 `json:"volume"`
 	Price         float64 `json:"price"`
 	PriceType     string  `json:"order_price_type"`
 	Direction     string  `json:"direction"`
@@ -369,7 +369,7 @@ type OrderInfoData struct {
 	ClientOrderId int     `json:"client_order_id"`
 	OrderSource   string  `json:"order_source"`
 	CreatedAt     int     `json:"created_at"`
-	TradeVolume   int     `json:"trade_volume"`
+	TradeVolume   float64 `json:"trade_volume"`
 	TradeTurnover float64 `json:"trade_turnover"`
 	Fee           float64 `json:"fee"`
 	TradeAvgPrice float64 `json:"trade_avg_price"`
