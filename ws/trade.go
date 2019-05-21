@@ -320,12 +320,15 @@ func (c *WSTradeClient) SubscribeOrderPush(symbol string) (<-chan WsOrderPushRes
 	}
 
 	mu.Lock()
-	if c.Updates.OrderPush[symbol] == nil {
+	_, ok := c.Updates.OrderPush[symbol]
+	if !ok {
 		c.Updates.OrderPush[symbol] = make(chan WsOrderPushResponse)
 	}
+
+	depthChan := c.Updates.OrderPush[symbol]
 	mu.Unlock()
 
-	return c.Updates.OrderPush[symbol], nil
+	return depthChan, nil
 }
 
 // Close closes the Websocket connected to the hbdm api.

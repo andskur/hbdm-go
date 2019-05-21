@@ -280,12 +280,15 @@ func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMark
 	}
 
 	mu.Lock()
-	if c.Updates.MarketDepth[symbol] == nil {
+	_, ok := c.Updates.MarketDepth[symbol]
+	if !ok {
 		c.Updates.MarketDepth[symbol] = make(chan WsDepthMarketResponse)
 	}
+
+	depthChan := c.Updates.MarketDepth[symbol]
 	mu.Unlock()
 
-	return c.Updates.MarketDepth[symbol], nil
+	return depthChan, nil
 }
 
 // gzipCompress compress Gzip response
