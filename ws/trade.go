@@ -117,7 +117,9 @@ func (c *WSTradeClient) handle() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
+			mu.Lock()
 			c.Updates.ErrorFeed <- err
+			mu.Unlock()
 			break
 		}
 
