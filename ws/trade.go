@@ -350,9 +350,8 @@ func (c *WSTradeClient) Close() {
 
 	mu.Lock()
 	close(c.Updates.ErrorFeed)
+	c.Updates.ErrorFeed = make(chan error)
 	mu.Unlock()
 
 	// c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
-	c.Updates.ErrorFeed = make(chan error)
-
 }
