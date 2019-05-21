@@ -208,11 +208,11 @@ func (c *WSMarketClient) Close() {
 		close(channel)
 	}
 
+	mu.Lock()
 	close(c.Updates.ErrorFeed)
-
 	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
 	c.Updates.ErrorFeed = make(chan error)
-
+	mu.Unlock()
 }
 
 // WsDepthMarketResponse is Market Depth method top-level response
