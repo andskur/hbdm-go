@@ -31,6 +31,7 @@ type WSTradeClient struct {
 	apiSecret string
 	conn      *websocket.Conn
 	Updates   *responseTradeChannels
+	exit      chan struct{}
 }
 
 // NewWSTradeClient creates a new hbm Websocket API client
@@ -51,6 +52,7 @@ func NewWSTradeClient(apiKey, apiSecret string) (*WSTradeClient, error) {
 		apiSecret: apiSecret,
 		conn:      conn,
 		Updates:   &handler,
+		exit:      make(chan struct{}),
 	}
 
 	go client.handle()
@@ -115,6 +117,15 @@ func (c *WSTradeClient) auth() error {
 // handle message from websocket
 func (c *WSTradeClient) handle() {
 	for {
+		select {
+		case <-c.exit:
+			fmt.Println("stop handling")
+			break
+		default:
+			goto HandleMessages
+		}
+
+	HandleMessages:
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			mu.Lock()
@@ -342,16 +353,18 @@ func (c *WSTradeClient) Close() {
 		log.Println("write close:", err)
 		return
 	}
+
+	close(c.exit)
+
 	c.conn.Close()
 
 	for _, channel := range c.Updates.OrderPush {
 		close(channel)
 	}
 
-	mu.Lock()
+	time.Sleep(5 * time.Second)
+
 	close(c.Updates.ErrorFeed)
 	c.Updates.ErrorFeed = make(chan error)
-	mu.Unlock()
-
-	// c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
+	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)
 }

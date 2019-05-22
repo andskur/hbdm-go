@@ -33,6 +33,7 @@ type responseMarketChannels struct {
 type WSMarketClient struct {
 	conn    *websocket.Conn
 	Updates *responseMarketChannels
+	exit    chan struct{}
 }
 
 // NewWSMarketClient creates a new hbm Websocket API client
@@ -51,6 +52,7 @@ func NewWSMarketClient() (*WSMarketClient, error) {
 	client := &WSMarketClient{
 		conn:    conn,
 		Updates: &handler,
+		exit:    make(chan struct{}),
 	}
 
 	go client.handle()
@@ -73,11 +75,19 @@ type wsHbdmMarketResponse struct {
 // handle message from websocket
 func (c *WSMarketClient) handle() {
 	for {
+		select {
+		case <-c.exit:
+			fmt.Println("stop handling")
+			break
+		default:
+			goto HandleMessages
+		}
+
+	HandleMessages:
+
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			mu.Lock()
 			c.Updates.ErrorFeed <- err
-			mu.Unlock()
 			break
 		}
 
@@ -193,30 +203,6 @@ func (c WSMarketClient) parseMethod(msg []byte) (method, symbol string, err erro
 	return
 }
 
-// Close closes the Websocket connected to the hbdm api.
-func (c *WSMarketClient) Close() {
-	// Cleanly close the connection by sending a close message and then
-	// waiting (with timeout) for the server to close the connection.
-	mu.Lock()
-	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	mu.Unlock()
-	if err != nil {
-		log.Println("write close:", err)
-		return
-	}
-	c.conn.Close()
-
-	for _, channel := range c.Updates.MarketDepth {
-		close(channel)
-	}
-
-	mu.Lock()
-	close(c.Updates.ErrorFeed)
-	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
-	c.Updates.ErrorFeed = make(chan error)
-	mu.Unlock()
-}
-
 // WsDepthMarketResponse is Market Depth method top-level response
 type WsDepthMarketResponse struct {
 	Ch   string          `json:"ch"`
@@ -291,6 +277,31 @@ func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMark
 	mu.Unlock()
 
 	return depthChan, nil
+}
+
+// Close closes the Websocket connected to the hbdm api.
+func (c *WSMarketClient) Close() {
+	// Cleanly close the connection by sending a close message and then
+	// waiting (with timeout) for the server to close the connection.
+	mu.Lock()
+	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	mu.Unlock()
+	if err != nil {
+		log.Println("write close:", err)
+		return
+	}
+
+	close(c.exit)
+
+	c.conn.Close()
+
+	for _, channel := range c.Updates.MarketDepth {
+		close(channel)
+	}
+
+	close(c.Updates.ErrorFeed)
+	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
+	c.Updates.ErrorFeed = make(chan error)
 }
 
 // gzipCompress compress Gzip response
