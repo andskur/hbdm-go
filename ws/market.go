@@ -87,7 +87,9 @@ func (c *WSMarketClient) handle() {
 
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
+			// mu.Lock()
 			c.Updates.ErrorFeed <- err
+			// mu.Unlock()
 			break
 		}
 
@@ -295,6 +297,7 @@ func (c *WSMarketClient) Close() {
 
 	c.conn.Close()
 
+	/*mu.Lock()
 	for _, channel := range c.Updates.MarketDepth {
 		close(channel)
 	}
@@ -302,6 +305,7 @@ func (c *WSMarketClient) Close() {
 	close(c.Updates.ErrorFeed)
 	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
 	c.Updates.ErrorFeed = make(chan error)
+	mu.Unlock()*/
 }
 
 // gzipCompress compress Gzip response

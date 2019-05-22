@@ -128,9 +128,9 @@ func (c *WSTradeClient) handle() {
 	HandleMessages:
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			mu.Lock()
+			// mu.Lock()
 			c.Updates.ErrorFeed <- err
-			mu.Unlock()
+			// mu.Unlock()
 			break
 		}
 
@@ -358,13 +358,11 @@ func (c *WSTradeClient) Close() {
 
 	c.conn.Close()
 
-	for _, channel := range c.Updates.OrderPush {
+	/*for _, channel := range c.Updates.OrderPush {
 		close(channel)
 	}
 
-	time.Sleep(5 * time.Second)
-
 	close(c.Updates.ErrorFeed)
 	c.Updates.ErrorFeed = make(chan error)
-	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)
+	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)*/
 }
