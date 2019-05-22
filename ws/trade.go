@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 
 	"github.com/andskur/hbdm-go"
+)
+
+var (
+	muT sync.Mutex
+	wgT sync.WaitGroup
 )
 
 // HBDM websocket API URL's
@@ -104,9 +110,9 @@ func (c *WSTradeClient) auth() error {
 		log.Println(err)
 	}
 
-	mu.Lock()
+	muT.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
-	mu.Unlock()
+	muT.Unlock()
 	if err != nil {
 		log.Println("write", err)
 	}
@@ -119,7 +125,7 @@ func (c *WSTradeClient) handle() {
 	for {
 		select {
 		case <-c.exit:
-			fmt.Println("stop handling")
+			wgT.Done()
 			break
 		default:
 			goto HandleMessages
@@ -128,9 +134,9 @@ func (c *WSTradeClient) handle() {
 	HandleMessages:
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// mu.Lock()
+			// c.muM.Lock()
 			c.Updates.ErrorFeed <- err
-			// mu.Unlock()
+			// c.muM.Unlock()
 			break
 		}
 
@@ -168,9 +174,9 @@ func (c *WSTradeClient) handle() {
 				c.Updates.ErrorFeed <- err
 				break
 			}
-			mu.Lock()
+			muT.Lock()
 			c.Updates.OrderPush[symbol] <- resp
-			mu.Unlock()
+			muT.Unlock()
 		default:
 			continue
 		}
@@ -244,9 +250,9 @@ Pong:
 		return true, err
 	}
 
-	mu.Lock()
+	muT.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, jsonPong)
-	mu.Unlock()
+	muT.Unlock()
 	if err != nil {
 		return true, err
 	}
@@ -323,32 +329,33 @@ func (c *WSTradeClient) SubscribeOrderPush(symbol string) (<-chan WsOrderPushRes
 		log.Println(err)
 	}
 
-	mu.Lock()
+	muT.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
-	mu.Unlock()
+	muT.Unlock()
 	if err != nil {
 		log.Println("write", err)
 	}
 
-	mu.Lock()
+	muT.Lock()
 	_, ok := c.Updates.OrderPush[symbol]
 	if !ok {
 		c.Updates.OrderPush[symbol] = make(chan WsOrderPushResponse)
 	}
 
 	depthChan := c.Updates.OrderPush[symbol]
-	mu.Unlock()
+	muT.Unlock()
 
 	return depthChan, nil
 }
 
 // Close closes the Websocket connected to the hbdm api.
 func (c *WSTradeClient) Close() {
+	wgT.Add(1)
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
-	mu.Lock()
+	muT.Lock()
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	mu.Unlock()
+	muT.Unlock()
 	if err != nil {
 		log.Println("write close:", err)
 		return
@@ -356,6 +363,7 @@ func (c *WSTradeClient) Close() {
 
 	close(c.exit)
 
+	wgT.Wait()
 	c.conn.Close()
 
 	/*for _, channel := range c.Updates.OrderPush {

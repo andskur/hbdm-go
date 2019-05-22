@@ -15,7 +15,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var mu sync.Mutex
+var (
+	muM sync.Mutex
+	wgM sync.WaitGroup
+)
 
 // HBDM websocket API URL's
 const (
@@ -77,19 +80,18 @@ func (c *WSMarketClient) handle() {
 	for {
 		select {
 		case <-c.exit:
-			fmt.Println("stop handling")
+			wgM.Done()
 			break
 		default:
 			goto HandleMessages
 		}
 
 	HandleMessages:
-
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// mu.Lock()
+			// muM.Lock()
 			c.Updates.ErrorFeed <- err
-			// mu.Unlock()
+			// muM.Unlock()
 			break
 		}
 
@@ -122,9 +124,9 @@ func (c *WSMarketClient) handle() {
 				c.Updates.ErrorFeed <- err
 				break
 			}
-			mu.Lock()
+			muM.Lock()
 			c.Updates.MarketDepth[symbol] <- resp
-			mu.Unlock()
+			muM.Unlock()
 		default:
 			continue
 		}
@@ -172,9 +174,9 @@ Pong:
 		return true, err
 	}
 
-	mu.Lock()
+	muM.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, jsonPong)
-	mu.Unlock()
+	muM.Unlock()
 	if err != nil {
 		return true, err
 	}
@@ -262,32 +264,33 @@ func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMark
 		log.Println(err)
 	}
 
-	mu.Lock()
+	muM.Lock()
 	err = c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
-	mu.Unlock()
+	muM.Unlock()
 	if err != nil {
 		log.Println("write", err)
 	}
 
-	mu.Lock()
+	muM.Lock()
 	_, ok := c.Updates.MarketDepth[symbol]
 	if !ok {
 		c.Updates.MarketDepth[symbol] = make(chan WsDepthMarketResponse)
 	}
 
 	depthChan := c.Updates.MarketDepth[symbol]
-	mu.Unlock()
+	muM.Unlock()
 
 	return depthChan, nil
 }
 
 // Close closes the Websocket connected to the hbdm api.
 func (c *WSMarketClient) Close() {
+	wgM.Add(1)
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
-	mu.Lock()
+	muM.Lock()
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	mu.Unlock()
+	muM.Unlock()
 	if err != nil {
 		log.Println("write close:", err)
 		return
@@ -295,9 +298,10 @@ func (c *WSMarketClient) Close() {
 
 	close(c.exit)
 
+	wgM.Wait()
 	c.conn.Close()
 
-	/*mu.Lock()
+	/*muM.Lock()
 	for _, channel := range c.Updates.MarketDepth {
 		close(channel)
 	}
@@ -305,7 +309,7 @@ func (c *WSMarketClient) Close() {
 	close(c.Updates.ErrorFeed)
 	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
 	c.Updates.ErrorFeed = make(chan error)
-	mu.Unlock()*/
+	muM.Unlock()*/
 }
 
 // gzipCompress compress Gzip response
