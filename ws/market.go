@@ -292,10 +292,10 @@ func (c *WSMarketClient) Close() {
 	for _, channel := range c.Updates.MarketDepth {
 		close(channel)
 	}
-
 	close(c.Updates.ErrorFeed)
-	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
-	c.Updates.ErrorFeed = make(chan error)
+
+	// c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
+	// c.Updates.ErrorFeed = make(chan error)
 }
 
 // gzipCompress compress Gzip response

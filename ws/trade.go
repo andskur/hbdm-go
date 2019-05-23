@@ -353,6 +353,7 @@ func (c *WSTradeClient) Close() {
 	}
 
 	close(c.Updates.ErrorFeed)
-	c.Updates.ErrorFeed = make(chan error)
-	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)
+
+	// c.Updates.ErrorFeed = make(chan error)
+	// c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)
 }
