@@ -126,7 +126,7 @@ func (c *WSTradeClient) handle() {
 		select {
 		case <-c.exit:
 			wgT.Done()
-			break
+			return
 		default:
 			goto HandleMessages
 		}
@@ -134,9 +134,7 @@ func (c *WSTradeClient) handle() {
 	HandleMessages:
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// c.muM.Lock()
 			c.Updates.ErrorFeed <- err
-			// c.muM.Unlock()
 			break
 		}
 
@@ -145,12 +143,6 @@ func (c *WSTradeClient) handle() {
 			c.Updates.ErrorFeed <- err
 			break
 		}
-
-		/*var res map[string]interface{}
-		if err := json.Unmarshal(msg, &res); err != nil {
-			c.Updates.ErrorFeed <- err
-			break
-		}*/
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
@@ -351,26 +343,16 @@ func (c *WSTradeClient) SubscribeOrderPush(symbol string) (<-chan WsOrderPushRes
 // Close closes the Websocket connected to the hbdm api.
 func (c *WSTradeClient) Close() {
 	wgT.Add(1)
-	// Cleanly close the connection by sending a close message and then
-	// waiting (with timeout) for the server to close the connection.
-	/*muT.Lock()
-	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	muT.Unlock()
-	if err != nil {
-		log.Println("write close:", err)
-		return
-	}*/
-
 	close(c.exit)
 
 	wgT.Wait()
 	c.conn.Close()
 
-	/*for _, channel := range c.Updates.OrderPush {
+	for _, channel := range c.Updates.OrderPush {
 		close(channel)
 	}
 
 	close(c.Updates.ErrorFeed)
 	c.Updates.ErrorFeed = make(chan error)
-	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)*/
+	c.Updates.OrderPush = make(map[string]chan WsOrderPushResponse)
 }

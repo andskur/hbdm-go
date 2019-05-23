@@ -81,7 +81,7 @@ func (c *WSMarketClient) handle() {
 		select {
 		case <-c.exit:
 			wgM.Done()
-			break
+			return
 		default:
 			goto HandleMessages
 		}
@@ -89,9 +89,7 @@ func (c *WSMarketClient) handle() {
 	HandleMessages:
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// muM.Lock()
 			c.Updates.ErrorFeed <- err
-			// muM.Unlock()
 			break
 		}
 
@@ -286,22 +284,11 @@ func (c *WSMarketClient) SubscribeMarketDepth(symbol string) (<-chan WsDepthMark
 // Close closes the Websocket connected to the hbdm api.
 func (c *WSMarketClient) Close() {
 	wgM.Add(1)
-	// Cleanly close the connection by sending a close message and then
-	// waiting (with timeout) for the server to close the connection.
-	/*muM.Lock()
-	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	muM.Unlock()
-	if err != nil {
-		log.Println("write close:", err)
-		return
-	}*/
-
 	close(c.exit)
 
 	wgM.Wait()
 	c.conn.Close()
 
-	/*muM.Lock()
 	for _, channel := range c.Updates.MarketDepth {
 		close(channel)
 	}
@@ -309,7 +296,6 @@ func (c *WSMarketClient) Close() {
 	close(c.Updates.ErrorFeed)
 	c.Updates.MarketDepth = make(map[string]chan WsDepthMarketResponse)
 	c.Updates.ErrorFeed = make(chan error)
-	muM.Unlock()*/
 }
 
 // gzipCompress compress Gzip response
