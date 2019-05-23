@@ -146,11 +146,11 @@ func (c *WSTradeClient) handle() {
 			break
 		}
 
-		var res map[string]interface{}
+		/*var res map[string]interface{}
 		if err := json.Unmarshal(msg, &res); err != nil {
 			c.Updates.ErrorFeed <- err
 			break
-		}
+		}*/
 
 		ok, err := c.checkPing(msg)
 		if err != nil {
@@ -353,13 +353,13 @@ func (c *WSTradeClient) Close() {
 	wgT.Add(1)
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
-	muT.Lock()
+	/*muT.Lock()
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	muT.Unlock()
 	if err != nil {
 		log.Println("write close:", err)
 		return
-	}
+	}*/
 
 	close(c.exit)
 

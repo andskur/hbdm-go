@@ -288,13 +288,13 @@ func (c *WSMarketClient) Close() {
 	wgM.Add(1)
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.
-	muM.Lock()
+	/*muM.Lock()
 	err := c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	muM.Unlock()
 	if err != nil {
 		log.Println("write close:", err)
 		return
-	}
+	}*/
 
 	close(c.exit)
 
